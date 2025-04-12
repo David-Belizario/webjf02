@@ -43,3 +43,5 @@ EXPOSE 80
 
 # Comando por defecto
 CMD ["apache2-foreground"]
+
+RUN docker-php-ext-install pdo pdo_pgsql
