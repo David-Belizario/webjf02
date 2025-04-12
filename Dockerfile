@@ -1,6 +1,6 @@
 FROM php:8.2-apache
 
-# Instala extensiones necesarias
+# Instalar dependencias del sistema necesarias
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
@@ -10,38 +10,39 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
-    && docker-php-ext-install pdo pdo_mysql zip
+    libpq-dev \
+    && docker-php-ext-install pdo pdo_pgsql zip
 
-# Instala Composer
+# Instalar Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Copia el proyecto al contenedor
+# Copiar los archivos del proyecto
 COPY . /var/www/html/
 
-# Establece permisos necesarios
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html/storage
+# Establecer permisos necesarios
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod -R 755 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Usa la carpeta "public" como DocumentRoot
+# Cambiar el directorio raíz de Apache a la carpeta public de Laravel
 ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 
-# Reemplaza DocumentRoot en la config de Apache
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
     && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-# Habilita módulos de Apache
+# Habilitar mod_rewrite para Laravel
 RUN a2enmod rewrite
 
-# Establece el directorio de trabajo
+# Establecer el directorio de trabajo
 WORKDIR /var/www/html
 
-# Instala dependencias de Laravel
+# Instalar dependencias de Laravel
 RUN composer install --no-dev --optimize-autoloader
 
-# Expone el puerto 80
+# Ejecutar migraciones automáticamente si quieres (opcional)
+# RUN php artisan migrate --force
+
+# Exponer el puerto
 EXPOSE 80
 
-# Comando por defecto
+# Iniciar Apache en primer plano
 CMD ["apache2-foreground"]
-
-RUN docker-php-ext-install pdo pdo_pgsql
