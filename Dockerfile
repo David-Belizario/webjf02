@@ -1,6 +1,6 @@
 FROM php:8.2-apache
 
-# Instalar dependencias del sistema necesarias
+# Instalar librerías necesarias
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
@@ -16,33 +16,30 @@ RUN apt-get update && apt-get install -y \
 # Instalar Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Copiar los archivos del proyecto
+# Copiar proyecto Laravel
 COPY . /var/www/html/
 
 # Establecer permisos necesarios
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 755 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Cambiar el directorio raíz de Apache a la carpeta public de Laravel
+# Configurar DocumentRoot a /public
 ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
     && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-# Habilitar mod_rewrite para Laravel
+# Habilitar mod_rewrite
 RUN a2enmod rewrite
 
-# Establecer el directorio de trabajo
-WORKDIR /var/www/html
-
 # Instalar dependencias de Laravel
+WORKDIR /var/www/html
 RUN composer install --no-dev --optimize-autoloader
 
-# Ejecutar migraciones automáticamente si quieres (opcional)
-# RUN php artisan migrate --force
+RUN php artisan migrate --force
 
-# Exponer el puerto
+# Exponer puerto 80
 EXPOSE 80
 
-# Iniciar Apache en primer plano
+# Iniciar Apache
 CMD ["apache2-foreground"]
